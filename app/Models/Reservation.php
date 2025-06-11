@@ -18,6 +18,11 @@ class Reservation extends Model
         'status',
     ];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'start_time' => 'datetime',
         'end_time' => 'datetime',
