@@ -48,39 +48,72 @@
     </div>
 
     @push('scripts')
-    <script>
-        document.getElementById('date').addEventListener('change', function() {
-            const date = this.value;
-            const timeSlotSelect = document.getElementById('time_slot');
-            timeSlotSelect.innerHTML = '<option value="">Cargando...</option>';
+    @push('scripts')
+<script>
+    const professionalSelect = document.getElementById('professional_id');
+    const dateInput = document.getElementById('date');
+    const timeSlotSelect = document.getElementById('time_slot');
+    const reservationForm = document.getElementById('reservationForm');
+    const hiddenStartTime = document.getElementById('start_time');
 
-            fetch(`{{ route('reservations.availability') }}?date=${date}`)
-                .then(response => response.json())
-                .then(slots => {
-                    timeSlotSelect.innerHTML = '<option value="">-- Selecciona una hora --</option>';
-                    if (slots.length > 0) {
-                        slots.forEach(slot => {
-                            const option = document.createElement('option');
-                            option.value = slot;
-                            option.textContent = slot;
-                            timeSlotSelect.appendChild(option);
-                        });
-                    } else {
-                        timeSlotSelect.innerHTML = '<option value="">No hay horas disponibles</option>';
-                    }
-                });
-        });
+    
+    function fetchAvailability() {
+        const professionalId = professionalSelect.value;
+        const date = dateInput.value;
 
-        document.getElementById('reservationForm').addEventListener('submit', function(e) {
-            const date = document.getElementById('date').value;
-            const time = document.getElementById('time_slot').value;
-            if(date && time) {
-                document.getElementById('start_time').value = `${date} ${time}`;
-            } else {
-                e.preventDefault();
-                alert('Por favor, selecciona una fecha y una hora.');
-            }
-        });
-    </script>
+        
+        if (!professionalId || !date) {
+            timeSlotSelect.innerHTML = '<option value="">-- Selecciona un profesional y una fecha --</option>';
+            return;
+        }
+
+        timeSlotSelect.innerHTML = '<option value="">Cargando...</option>';
+
+        
+        const url = `{{ route('reservations.availability') }}?date=<span class="math-inline">\{date\}&professional\_id\=</span>{professionalId}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('La respuesta de la red no fue OK');
+                }
+                return response.json();
+            })
+            .then(slots => {
+                timeSlotSelect.innerHTML = '<option value="">-- Selecciona una hora --</option>';
+                if (slots.length > 0) {
+                    slots.forEach(slot => {
+                        const option = document.createElement('option');
+                        option.value = slot;
+                        option.textContent = slot;
+                        timeSlotSelect.appendChild(option);
+                    });
+                } else {
+                    timeSlotSelect.innerHTML = '<option value="">No hay horas disponibles para este profesional</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error en la petición Fetch:', error);
+                timeSlotSelect.innerHTML = '<option value="">Error al cargar horas</option>';
+            });
+    }
+
+    
+    professionalSelect.addEventListener('change', fetchAvailability);
+    dateInput.addEventListener('change', fetchAvailability);
+
+    
+    reservationForm.addEventListener('submit', function(e) {
+        const date = dateInput.value;
+        const time = timeSlotSelect.value;
+        if(date && time) {
+            hiddenStartTime.value = `${date} ${time}`;
+        } else {
+            e.preventDefault();
+            alert('Por favor, completa todos los campos antes de confirmar.');
+        }
+    });
+</script>
+@endpush
     @endpush
 </x-app-layout>

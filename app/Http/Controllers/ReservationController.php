@@ -29,23 +29,34 @@ class ReservationController extends Controller
 
     public function getAvailability(Request $request)
     {
-        // ... (este método está correcto, no se cambia)
-        $request->validate(['date' => 'required|date']);
-        $date = Carbon::parse($request->input('date'));
+        // Ahora también validamos que se envíe el ID del profesional
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'professional_id' => 'required|exists:professionals,id', // <-- NUEVA VALIDACIÓN
+        ]);
+    
+        $date = Carbon::parse($validated['date']);
+        $professionalId = $validated['professional_id'];
         $dayOfWeek = $date->dayOfWeek;
-
+    
+        // 1. Obtener el horario para ese día de la semana
+        // (En un futuro, esto podría depender del profesional también)
         $schedule = Schedule::where('day_of_week', $dayOfWeek)->where('is_active', true)->first();
         if (!$schedule) {
-            return response()->json([]);
+            return response()->json([]); // No hay horario, no hay citas
         }
-
-        $reservationsOnDate = Reservation::whereDate('start_time', $date)->get();
-
+    
+        // 2. Obtener las reservas para esa fecha Y ESE PROFESIONAL ESPECÍFICO
+        $reservationsOnDate = Reservation::where('professional_id', $professionalId) // <-- FILTRO AÑADIDO
+                                         ->whereDate('start_time', $date)
+                                         ->get();
+    
+        // 3. Generar franjas horarias (la lógica interna no cambia)
         $slots = [];
         $startTime = Carbon::parse($schedule->start_time);
         $endTime = Carbon::parse($schedule->end_time);
         $interval = 30;
-
+    
         while ($startTime < $endTime) {
             $isAvailable = true;
             foreach ($reservationsOnDate as $reservation) {
@@ -54,16 +65,16 @@ class ReservationController extends Controller
                     break;
                 }
             }
-
+    
             if ($isAvailable) {
                 if (!$date->isToday() || ($date->isToday() && $startTime->isFuture())) {
                     $slots[] = $startTime->format('H:i');
                 }
             }
-
+    
             $startTime->addMinutes($interval);
         }
-
+    
         return response()->json($slots);
     }
 
